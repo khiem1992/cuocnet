@@ -46,7 +46,8 @@
                     <select id="customer-select" class="block w-full px-4 py-3 bg-white border border-indigo-300 rounded-xl shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500 text-lg font-medium transition duration-150 ease-in-out">
                         <option value="">-- Vui lòng chọn khách hàng --</option>
                     </select>
-                    <button id="add-customer-btn" title="Thêm khách hàng mới" class="flex-shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-[1.05] flex items-center justify-center">
+                    <!-- Nút Thêm Khách Hàng Mới (Đã cố định kích thước) -->
+                    <button id="add-customer-btn" title="Thêm khách hàng mới" class="flex-shrink-0 bg-indigo-500 hover:bg-indigo-600 text-white font-bold p-3 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
@@ -78,14 +79,14 @@
                  </div>
             </div>
 
-            <!-- Submit Button (Vẫn giữ nguyên vị trí trực quan) -->
-            <button id="submit-payment" disabled class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-extrabold py-4 rounded-xl shadow-lg text-xl transition-all duration-300 transform hover:scale-[1.01] hover:shadow-xl">
+            <!-- Submit Button -->
+            <button id="submit-payment" disabled class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-extrabold py-4 rounded-xl shadow-lg text-xl transition-all duration-300 hover:shadow-xl">
                 Xác Nhận Nộp Tiền
             </button>
             
-            <!-- Khối 3: Lịch sử gần nhất (Đã chuyển xuống dưới nút Submit) -->
+            <!-- Khối 3: Lịch sử gần nhất (Tham Khảo) -->
             <div id="history-block" class="space-y-4 p-6 bg-white rounded-2xl shadow-lg border border-slate-200 text-slate-600 hidden">
-                <h2 class="text-lg font-bold text-indigo-700 border-b pb-3">3. Thông Tin Thanh Toán Gần Nhất </h2>
+                <h2 class="text-lg font-bold text-indigo-700 border-b pb-3">3. Thông Tin Khách Hàng</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="p-3 bg-indigo-50 rounded-lg">
                         <span class="font-semibold text-slate-800 block text-sm">Hạn dùng gần nhất:</span>
@@ -120,7 +121,7 @@
             <form id="new-customer-form" class="space-y-4">
                 <input type="text" id="new-customer-name" required placeholder="Tên khách hàng *" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
                 <input type="text" id="new-package-price" required placeholder="Giá 1 tháng (VD: 70.000) *" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
-                <input type="text" id="new-promo-price" required placeholder="Giá khuyến mại 12 tháng (VD: 800.000) *" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
+                <input type="text" id="new-promo-price" required placeholder="Giá khi nộp 12 tháng (VD: 800.000) *" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
                 <input type="text" id="new-initial-payment" required placeholder="Số tiền nộp ban đầu *" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
                 <div>
                     <label for="new-expiry" class="block text-sm font-medium text-gray-700">Hạn sử dụng ban đầu (Ngày cuối tháng) *</label>
@@ -151,7 +152,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // !!! QUAN TRỌNG: Dán URL Web App của Google Apps Script của bạn vào đây
     // URL này dùng để giao tiếp với Google Sheet để lưu/tải dữ liệu.
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPcDEwWoyxHrQlsKpePfCS6gAzJ1iFIn8fPBiDuV-ybJnQpKgp5K6Y0wkeZmipb5gc/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyqkYs9Juct1QOVdqpwDE6KY7J-rRPDgNsYUZ1VNXCCsrJOGfktavCSVf3dINsxD0qQ/exec';
 
     const loader = document.getElementById('loader');
     const mainContent = document.getElementById('main-content');
@@ -207,10 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationContent.innerHTML = htmlContent;
         notification.classList.remove('bg-green-500', 'bg-red-500', 'opacity-0', 'translate-y-10');
         notification.classList.add(isError ? 'bg-red-500' : 'bg-green-500', 'opacity-100', 'translate-y-0');
+        
+        // Thời gian hiển thị thông báo: 5 giây cho lỗi, 10 giây cho thành công
         if (isError) {
-            notificationTimer = setTimeout(hideNotification, 5000);
+            notificationTimer = setTimeout(hideNotification, 5000); // 5 giây cho lỗi
         } else {
-            notificationTimer = setTimeout(hideNotification, 10000);
+            notificationTimer = setTimeout(hideNotification, 10000); // 10 giây cho thành công
         }
     };
 
@@ -307,9 +310,9 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = false;
     };
     
-    // --- CALCULATIONS ---
+    // --- CALCULATIONS (ĐÃ CẬP NHẬT LOGIC NGÀY CUỐI THÁNG) ---
     const calculateNewExpiry = () => {
-        if (!selectedCustomer) {
+        if (!selectedCustomer) { 
             newExpiryDateDiv.textContent = 'Chưa tính'; monthsAddedSpan.textContent = ''; submitBtn.disabled = true; return;
         }
         const amountPaid = parseCurrency(amountPaidInput.value);
@@ -332,26 +335,23 @@ document.addEventListener('DOMContentLoaded', () => {
             newExpiryDateDiv.textContent = 'Số tiền không đủ'; monthsAddedSpan.textContent = ''; submitBtn.disabled = true; return;
         }
         
-        // Tính ngày hết hạn mới: Bắt đầu từ ngày hết hạn cũ và cộng thêm số tháng
+        // Lấy ngày hết hạn cũ
         const expiryDateOld = new Date(hanDungMoi);
-        
-        // Tạo ngày mới bằng cách cộng monthsToAdd vào tháng hiện tại của hanDungMoi
-        // Date object sẽ tự động điều chỉnh năm và ngày cho đúng
-        const newDate = new Date(expiryDateOld.getFullYear(), expiryDateOld.getMonth() + monthsToAdd, expiryDateOld.getDate());
-        
-        // Logic điều chỉnh để đảm bảo ngày mới không bị nhảy nếu ngày hết hạn cũ là ngày cuối tháng
-        // Nếu ngày hết hạn cũ là ngày cuối tháng (ví dụ 31/1), ngày mới cần là ngày cuối tháng tương ứng (ví dụ 29/2)
-        if (expiryDateOld.getDate() !== newDate.getDate()) {
-            newDate.setDate(0); // Đặt lại ngày về ngày cuối tháng trước
-        }
-        
+
+        // Tính ngày cuối cùng của tháng sau khi cộng thêm số tháng (monthsToAdd)
+        // Bằng cách tạo một Date object với ngày là 0 (ngày cuối tháng trước đó)
+        // Ta cần cộng 1 vào tháng hiện tại của ngày hết hạn cũ (vì hanDungMoi đang là ngày cuối tháng, 
+        // tháng hết hạn cũ đã kết thúc) rồi mới cộng thêm số tháng mới.
+        const finalMonth = expiryDateOld.getMonth() + 1 + monthsToAdd;
+        const newDate = new Date(expiryDateOld.getFullYear(), finalMonth, 0); // Ngày 0 của tháng tiếp theo là ngày cuối của tháng hiện tại
+
         newExpiryDateDiv.textContent = formatDate(newDate);
         monthsAddedSpan.textContent = `+${monthsToAdd} tháng`;
         
         submitBtn.disabled = false;
     };
 
-    // --- DATA SUBMISSION ---
+    // --- DATA SUBMISSION (ĐÃ CẬP NHẬT LOGIC NGÀY CUỐI THÁNG) ---
     const submitAction = async (payload) => {
         const isAdding = payload.action === 'add_customer';
         setLoadingState(true, isAdding ? 'add' : 'payment');
@@ -402,14 +402,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Tính ngày hết hạn mới
+        // Lấy ngày hết hạn cũ
         const expiryDateOld = new Date(hanDungMoi);
-        const newExpiry = new Date(expiryDateOld.getFullYear(), expiryDateOld.getMonth() + monthsToAdd, expiryDateOld.getDate());
-        
-        // Điều chỉnh ngày cuối tháng
-        if (expiryDateOld.getDate() !== newExpiry.getDate()) {
-            newExpiry.setDate(0); 
-        }
+
+        // Tính ngày cuối cùng của tháng sau khi cộng thêm số tháng
+        const finalMonth = expiryDateOld.getMonth() + 1 + monthsToAdd;
+        const newExpiry = new Date(expiryDateOld.getFullYear(), finalMonth, 0); // Ngày cuối tháng
 
         submitAction({
             action: 'submit_payment', tenKH: selectedCustomer.tenKH, soTienNop: amountPaid,
@@ -432,8 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let months = (promoPrice > 0 && initialPayment === promoPrice) ? 12 : Math.floor(initialPayment / packagePrice);
         
-        // Tính ngày hết hạn ban đầu (lấy ngày cuối tháng)
+        // Tính ngày hết hạn ban đầu (lấy ngày cuối tháng dựa trên ngày đã chọn)
         const selectedExpiryDate = new Date(expiryDateStr);
+        // Date(year, month + 1, 0) sẽ cho ngày cuối cùng của tháng được chỉ định bởi 'month'
         const initialExpiry = new Date(selectedExpiryDate.getFullYear(), selectedExpiryDate.getMonth() + 1, 0); 
         
         submitAction({
