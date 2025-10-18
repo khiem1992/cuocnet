@@ -197,7 +197,7 @@
     </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVJNElyAooO3s6GD2gwZLuFLLSLSJ1J6FzpwQN4YBlpN1LuN7y2Fr71bi5EMZTCOMAnQ/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcqBkDCfsW9C4pXPb6c6dQpv8Mctg39oDqIszW8KNJtsiXUM2tPFhCZ7lxwDC68hel/exec';
 
     // State
     let customers = [];
@@ -258,7 +258,7 @@
         toast.classList.remove('opacity-0', 'translate-y-10');
         setTimeout(() => {
             toast.classList.add('opacity-0', 'translate-y-10');
-        }, 5000); // Show for 5 seconds
+        }, 9000); // Show for 9 seconds
     }
     
     function formatCurrency(num) {
@@ -341,11 +341,15 @@
             const response = await fetch(url, { method: 'GET', redirect: 'follow' });
             const result = await response.json();
             
-            if (result.success) {
+            // **OPTIMIZATION: Check for data returned directly from login**
+            if (result.success && result.data) {
                 adminPassword = password;
+                customers = result.data; // Use data from login
+                
+                populateCustomerDropdown(); // Populate dropdown immediately
+                
                 loginModal.classList.add('hidden');
                 appEl.classList.remove('hidden');
-                await loadInitialData();
             } else {
                 loginError.classList.remove('hidden');
             }
@@ -358,6 +362,8 @@
         }
     }
     
+    // This function is now mainly for manual refresh if we add such a button later.
+    // The initial load is handled by handleLogin.
     async function loadInitialData() {
         showLoader();
         const data = await fetchData('getCustomers');
