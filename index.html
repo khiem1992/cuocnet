@@ -46,8 +46,11 @@
 <body class="text-slate-800">
 
     <!-- Main Container -->
-    <div id="app" class="container mx-auto p-4 md:p-8 max-w-2xl hidden">
-        <div class="text-center mb-10">
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-2xl hidden relative"> <button id="logout-btn" class="absolute top-0 right-0 mt-4 mr-4 text-slate-400 hover:text-red-500 text-sm font-medium transition-colors duration-200">
+        <i class="fas fa-sign-out-alt"></i> Đăng xuất
+    </button>
+
+    <div class="text-center mb-10">
             <h1 class="text-4xl font-extrabold text-indigo-600 mb-2 tracking-tight">PHIẾU THU INTERNET</h1>
             <p class="text-slate-500">Quản lý thu chi và hạn dùng tự động</p>
         </div>
@@ -198,6 +201,7 @@
 
 <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcqBkDCfsW9C4pXPb6c6dQpv8Mctg39oDqIszW8KNJtsiXUM2tPFhCZ7lxwDC68hel/exec';
+    const STORAGE_KEY = 'internet_app_session_key'; // Khóa để lưu mật khẩu
 
     // State
     let customers = [];
@@ -209,7 +213,8 @@
     const loader = document.getElementById('loader');
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
-    
+    const logoutBtn = document.getElementById('logout-btn'); // Nút đăng xuất mới
+
     // Login
     const loginModal = document.getElementById('login-modal');
     const loginForm = document.getElementById('login-form');
@@ -240,7 +245,7 @@
     const addCustomerBtn = document.getElementById('add-customer-btn');
     const cancelAddCustomerBtn = document.getElementById('cancel-add-customer');
     const addCustomerForm = document.getElementById('add-customer-form');
-    
+
     const editSpecsModal = document.getElementById('edit-specs-modal');
     const editSpecsBtn = document.getElementById('edit-specs-btn');
     const cancelEditSpecsBtn = document.getElementById('cancel-edit-specs');
@@ -249,23 +254,23 @@
     const editSpecsCustomerName = document.getElementById('edit-specs-customer-name');
 
     // --- UTILITY FUNCTIONS ---
-    
+
     function showLoader() { loader.classList.remove('hidden'); }
     function hideLoader() { loader.classList.add('hidden'); }
 
     function showToast(message) {
-        toastMessage.innerHTML = message; // Use innerHTML to render colors
+        toastMessage.innerHTML = message;
         toast.classList.remove('opacity-0', 'translate-y-10');
         setTimeout(() => {
             toast.classList.add('opacity-0', 'translate-y-10');
-        }, 9000); // Show for 9 seconds
+        }, 9000);
     }
-    
+
     function formatCurrency(num) {
         if (num === undefined || num === null) return '0';
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
-    
+
     function parseCurrency(str) {
         if (!str) return 0;
         return parseInt(String(str).replace(/\./g, ''), 10) || 0;
@@ -279,7 +284,7 @@
         const year = date.getFullYear();
         return `${day}/${month}/${year}`;
     }
-    
+
     function formatDateTime(dateString) {
         if (!dateString) return '--:-- --/--/----';
         const date = new Date(dateString);
@@ -297,7 +302,7 @@
         for (const key in params) {
             url.searchParams.append(key, params[key]);
         }
-        
+
         try {
             const response = await fetch(url, { method: 'GET', redirect: "follow" });
             if (!response.ok) throw new Error('Network response was not ok.');
@@ -328,11 +333,11 @@
 
     // --- CORE LOGIC ---
 
-    async function handleLogin(e) {
-        e.preventDefault();
+    // Hàm thực hiện đăng nhập (dùng chung cho cả auto và manual)
+    async function performLogin(password, isAutoLogin = false) {
         showLoader();
-        loginError.classList.add('hidden');
-        const password = passwordInput.value;
+        if (!isAutoLogin) loginError.classList.add('hidden');
+
         const url = new URL(SCRIPT_URL);
         url.searchParams.append('action', 'login');
         url.searchParams.append('password', password);
@@ -340,31 +345,67 @@
         try {
             const response = await fetch(url, { method: 'GET', redirect: 'follow' });
             const result = await response.json();
-            
-            // **OPTIMIZATION: Check for data returned directly from login**
+
             if (result.success && result.data) {
+                // Đăng nhập thành công
                 adminPassword = password;
-                customers = result.data; // Use data from login
-                
-                populateCustomerDropdown(); // Populate dropdown immediately
-                
+                customers = result.data;
+                localStorage.setItem(STORAGE_KEY, password); // LƯU MẬT KHẨU
+
+                populateCustomerDropdown();
                 loginModal.classList.add('hidden');
                 appEl.classList.remove('hidden');
+                if (isAutoLogin) showToast('Đã tự động đăng nhập lại.');
             } else {
-                loginError.classList.remove('hidden');
+                // Đăng nhập thất bại
+                if (isAutoLogin) {
+                    // Nếu tự động đăng nhập thất bại (do đổi pass), xóa storage
+                    localStorage.removeItem(STORAGE_KEY);
+                    loginModal.classList.remove('hidden'); // Hiện lại modal
+                } else {
+                    loginError.classList.remove('hidden');
+                    loginError.textContent = 'Mật khẩu không đúng!';
+                }
             }
         } catch (error) {
             console.error('Login error:', error);
-            loginError.textContent = 'Lỗi kết nối. Vui lòng thử lại.';
-            loginError.classList.remove('hidden');
+            if (!isAutoLogin) {
+                 loginError.textContent = 'Lỗi kết nối. Vui lòng thử lại.';
+                 loginError.classList.remove('hidden');
+            }
         } finally {
             hideLoader();
         }
     }
-    
-    // This function is now mainly for manual refresh if we add such a button later.
-    // The initial load is handled by handleLogin.
+
+    // Xử lý sự kiện submit form đăng nhập
+    async function handleLoginSubmit(e) {
+        e.preventDefault();
+        const password = passwordInput.value;
+        await performLogin(password, false);
+    }
+
+    // Hàm đăng xuất
+    function handleLogout() {
+        if (confirm('Bạn có chắc muốn đăng xuất?')) {
+            localStorage.removeItem(STORAGE_KEY);
+            window.location.reload();
+        }
+    }
+
+    // Kiểm tra phiên đăng nhập cũ khi vừa vào trang
+    function checkSavedSession() {
+        const savedPassword = localStorage.getItem(STORAGE_KEY);
+        if (savedPassword) {
+            // Nếu có pass cũ, thử tự động đăng nhập
+            performLogin(savedPassword, true);
+        } else {
+            // Không có pass cũ thì không làm gì, modal đăng nhập vẫn hiện mặc định
+        }
+    }
+
     async function loadInitialData() {
+        // Hàm này giữ lại để tương thích nếu cần refresh dữ liệu thủ công sau này
         showLoader();
         const data = await fetchData('getCustomers');
         if (data && data.success) {
@@ -375,7 +416,7 @@
         }
         hideLoader();
     }
-    
+
     function populateCustomerDropdown() {
         customerSelect.innerHTML = '<option value="">-- Vui lòng chọn khách hàng --</option>';
         customers.forEach(customer => {
@@ -392,28 +433,25 @@
             resetUI();
             return;
         }
-        
+
         selectedCustomer = customers.find(c => c['Tên KH'] === customerName);
         if (selectedCustomer) {
-            // Display info
             customerPackageInfoEl.classList.remove('hidden');
             customerPackageInfoEl.innerHTML = `Gói cước: <span class="font-semibold">${formatCurrency(selectedCustomer['Giá 1 tháng'])} vnđ/tháng</span>.`;
             paymentBlock.classList.remove('hidden');
             historyBlock.classList.remove('hidden');
-            
-            // --- HIỂN THỊ LỊCH SỬ GIAO DỊCH ---
+
             historyExpiry.textContent = formatDate(selectedCustomer['Hạn dùng mới']);
             historyDate.textContent = formatDateTime(selectedCustomer['Ngày nộp']);
             historyAmount.textContent = `${formatCurrency(selectedCustomer['Số tiền nộp'])} vnđ`;
             historyPromoPrice.textContent = `${formatCurrency(selectedCustomer['Giá 12 tháng'])} vnđ`;
             historySpecs.textContent = selectedCustomer['Thông số'] || 'Chưa có';
 
-            // Reset payment form
             paymentForm.reset();
-            paymentAmountInput.dispatchEvent(new Event('input')); // Recalculate expiry
+            paymentAmountInput.dispatchEvent(new Event('input'));
         }
     }
-    
+
     function calculateNewExpiry() {
         const expiryContainer = document.getElementById('new-expiry-container');
         const newExpiryTextEl = document.getElementById('new-expiry-text');
@@ -425,11 +463,11 @@
             newMonthsBadgeEl.classList.add('hidden');
             expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-slate-100 text-slate-500 border-slate-200";
         };
-        
+
         const setSuccessState = () => {
              expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-teal-50 text-teal-800 border-teal-200";
         };
-        
+
         const setWarningState = () => {
             expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-orange-50 text-orange-700 border-orange-200";
         };
@@ -438,15 +476,15 @@
             setDefaultState();
             return;
         }
-        
+
         const amount = parseCurrency(paymentAmountInput.value);
         const monthlyPrice = parseInt(selectedCustomer['Giá 1 tháng']);
-        
+
         if (amount <= 0) {
             setDefaultState();
             return;
         }
-        
+
         if (amount > 0 && amount < monthlyPrice) {
             newExpiryTextEl.textContent = 'Không đủ tiền';
             newMonthsBadgeEl.classList.add('hidden');
@@ -457,16 +495,15 @@
         setSuccessState();
         const promoPrice = parseInt(selectedCustomer['Giá 12 tháng']);
         const currentExpiry = new Date(selectedCustomer['Hạn dùng mới']);
-        
+
         let monthsToAdd = 0;
-        
+
         if (promoPrice && amount === promoPrice) {
             monthsToAdd = 12;
         } else if (amount > 0 && monthlyPrice > 0) {
             monthsToAdd = Math.floor(amount / monthlyPrice);
         }
 
-        // Update and show the months badge
         newMonthsEl.textContent = monthsToAdd;
         newMonthsBadgeEl.classList.remove('hidden');
 
@@ -474,18 +511,18 @@
         if (monthsToAdd > 0) {
             newDate.setMonth(newDate.getMonth() + monthsToAdd);
         }
-        
+
         const finalDate = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0);
         newExpiryTextEl.textContent = formatDate(finalDate);
     }
-    
+
     async function handlePaymentSubmit(e) {
         e.preventDefault();
         if (!selectedCustomer) {
             showToast('Vui lòng chọn khách hàng.');
             return;
         }
-        
+
         const amount = parseCurrency(paymentAmountInput.value);
         const monthlyPrice = parseInt(selectedCustomer['Giá 1 tháng']);
 
@@ -506,7 +543,7 @@
         };
 
         const result = await postData(payload);
-        
+
         if (result && result.success) {
             showToast(`Đã nộp tiền cho <span class="font-bold text-teal-400">${result.data.name}</span>, hạn mới: <span class="font-bold text-green-400">${formatDate(result.data.newExpiry)}</span>`);
             resetUI();
@@ -518,7 +555,7 @@
         hideLoader();
         submitPaymentBtn.disabled = false;
     }
-    
+
     async function handleAddCustomerSubmit(e) {
         e.preventDefault();
         showLoader();
@@ -566,7 +603,6 @@
         if (result && result.success) {
             showToast('Cập nhật thông số thành công!');
             editSpecsModal.classList.add('hidden');
-            // Optimistic update
             const customer = customers.find(c => c['Tên KH'] === editSpecsCustomerName.value);
             if(customer) customer['Thông số'] = editSpecsInput.value;
             handleCustomerSelect({ target: { value: editSpecsCustomerName.value }});
@@ -589,7 +625,7 @@
     function setupCurrencyInputs() {
         document.querySelectorAll('input[type="text"], input[type="tel"]').forEach(input => {
             if (input.placeholder.includes('tiền') || input.placeholder.includes('Giá')) {
-                 input.addEventListener('input', (e) => {
+                    input.addEventListener('input', (e) => {
                     let value = e.target.value.replace(/\./g, '');
                     if (isNaN(value) || value.trim() === '') {
                         e.target.value = '';
@@ -603,13 +639,15 @@
 
     // --- EVENT LISTENERS ---
 
-    loginForm.addEventListener('submit', handleLogin);
+    loginForm.addEventListener('submit', handleLoginSubmit);
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout); // Gán sự kiện cho nút đăng xuất
+
     customerSelect.addEventListener('change', handleCustomerSelect);
     paymentAmountInput.addEventListener('input', calculateNewExpiry);
     paymentForm.addEventListener('submit', handlePaymentSubmit);
     addCustomerForm.addEventListener('submit', handleAddCustomerSubmit);
     editSpecsForm.addEventListener('submit', handleEditSpecsSubmit);
-    
+
     // Modal controls
     addCustomerBtn.addEventListener('click', () => addCustomerModal.classList.remove('hidden'));
     cancelAddCustomerBtn.addEventListener('click', () => addCustomerModal.classList.add('hidden'));
@@ -626,10 +664,10 @@
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
         setupCurrencyInputs();
+        checkSavedSession(); // KIỂM TRA PHIÊN ĐĂNG NHẬP KHI TẢI TRANG
     });
 
 </script>
 
 </body>
 </html>
-
