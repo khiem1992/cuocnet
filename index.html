@@ -90,9 +90,11 @@
                         </div>
                     </div>
                      <div>
-                        <label for="notes" class="block text-sm font-medium text-slate-600 mb-1">Ghi chú</label>
-                        <textarea id="notes" rows="1" class="mt-1 block w-full p-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 transition duration-150 ease-in-out" placeholder="Ghi chú về giao dịch (nếu có)"></textarea>
-                    </div>
+                      <label for="notes" class="block text-sm font-medium text-slate-600 mb-1">Ghi chú</label>
+                      <textarea id="notes" rows="1" class="mt-1 block w-full p-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 transition duration-150 ease-in-out" placeholder="Ghi chú về giao dịch (nếu có)"></textarea>
+    
+                      <p id="last-note-display" class="text-red-600 text-xs font-medium mt-1 italic"></p>
+                      </div>
                     <button type="submit" id="submit-payment" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center text-lg">
                         <i class="fas fa-check-circle mr-2"></i> XÁC NHẬN NỘP TIỀN
                     </button>
@@ -200,7 +202,7 @@
     </div>
 
 <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcqBkDCfsW9C4pXPb6c6dQpv8Mctg39oDqIszW8KNJtsiXUM2tPFhCZ7lxwDC68hel/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby-Mp1iOlHPCTeetHr5H-hVLR-wqH9LUeZzCFtCWdFu9L5GOaBsf8Q_7cDtjpSR4OvE/exec';
     const STORAGE_KEY = 'internet_app_session_key'; // Khóa để lưu mật khẩu
 
     // State
@@ -428,28 +430,40 @@
     }
 
     function handleCustomerSelect(e) {
-        const customerName = e.target.value;
-        if (!customerName) {
-            resetUI();
-            return;
-        }
+    const customerName = e.target.value;
+    const lastNoteDisplay = document.getElementById('last-note-display');
 
-        selectedCustomer = customers.find(c => c['Tên KH'] === customerName);
-        if (selectedCustomer) {
-            customerPackageInfoEl.classList.remove('hidden');
-            customerPackageInfoEl.innerHTML = `Gói cước: <span class="font-semibold">${formatCurrency(selectedCustomer['Giá 1 tháng'])} vnđ/tháng</span>.`;
-            paymentBlock.classList.remove('hidden');
-            historyBlock.classList.remove('hidden');
+    if (!customerName) {
+        resetUI();
+        return;
+    }
 
-            historyExpiry.textContent = formatDate(selectedCustomer['Hạn dùng mới']);
-            historyDate.textContent = formatDateTime(selectedCustomer['Ngày nộp']);
-            historyAmount.textContent = `${formatCurrency(selectedCustomer['Số tiền nộp'])} vnđ`;
-            historyPromoPrice.textContent = `${formatCurrency(selectedCustomer['Giá 12 tháng'])} vnđ`;
-            historySpecs.textContent = selectedCustomer['Thông số'] || 'Chưa có';
+    // Tìm khách hàng trong mảng customers đã tải về
+    selectedCustomer = customers.find(c => c['Tên KH'] === customerName);
 
-            paymentForm.reset();
-            paymentAmountInput.dispatchEvent(new Event('input'));
-        }
+    if (selectedCustomer) {
+        // 1. Hiển thị các khối thông tin (Xóa class hidden)
+        customerPackageInfoEl.classList.remove('hidden');
+        customerPackageInfoEl.innerHTML = `Gói cước: <span class="font-semibold">${formatCurrency(selectedCustomer['Giá 1 tháng'])} vnđ/tháng</span>.`;
+        paymentBlock.classList.remove('hidden');
+        historyBlock.classList.remove('hidden');
+
+        // 2. Cập nhật thông tin lịch sử khách hàng (Block 3)
+        historyExpiry.textContent = formatDate(selectedCustomer['Hạn dùng mới']);
+        historyDate.textContent = formatDateTime(selectedCustomer['Ngày nộp']);
+        historyAmount.textContent = `${formatCurrency(selectedCustomer['Số tiền nộp'])} vnđ`;
+        historyPromoPrice.textContent = `${formatCurrency(selectedCustomer['Giá 12 tháng'])} vnđ`;
+        historySpecs.textContent = selectedCustomer['Thông số'] || 'Chưa có';
+
+        // 3. Hiển thị Ghi chú cũ (Cột I trong Sheet) - CHỮ MÀU ĐỎ
+        // Lưu ý: Tên property phải khớp chính xác với tiêu đề cột I trong Sheet
+        const oldNote = selectedCustomer['Ghi chú'] || '(Không có)';
+        lastNoteDisplay.textContent = `Ghi chú gần nhất: ${oldNote}`;
+
+        // Reset form nộp tiền
+        paymentForm.reset();
+        paymentAmountInput.dispatchEvent(new Event('input'));
+      }
     }
 
     function calculateNewExpiry() {
@@ -619,14 +633,16 @@
     }
 
     function resetUI() {
-        customerSelect.value = '';
-        customerPackageInfoEl.classList.add('hidden');
-        paymentBlock.classList.add('hidden');
-        historyBlock.classList.add('hidden');
-        paymentForm.reset();
-        calculateNewExpiry();
-        selectedCustomer = null;
-    }
+    customerSelect.value = '';
+    customerPackageInfoEl.classList.add('hidden');
+    paymentBlock.classList.add('hidden');
+    historyBlock.classList.add('hidden');
+    // THÊM DÒNG NÀY
+    document.getElementById('last-note-display').textContent = ''; 
+    paymentForm.reset();
+    calculateNewExpiry();
+    selectedCustomer = null;
+}
 
     function setupCurrencyInputs() {
         document.querySelectorAll('input[type="text"], input[type="tel"]').forEach(input => {
