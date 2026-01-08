@@ -453,67 +453,73 @@
     }
 
     function calculateNewExpiry() {
-        const expiryContainer = document.getElementById('new-expiry-container');
-        const newExpiryTextEl = document.getElementById('new-expiry-text');
-        const newMonthsBadgeEl = document.getElementById('new-months-badge');
-        const newMonthsEl = document.getElementById('new-months');
+    const expiryContainer = document.getElementById('new-expiry-container');
+    const newExpiryTextEl = document.getElementById('new-expiry-text');
+    const newMonthsBadgeEl = document.getElementById('new-months-badge');
+    const newMonthsEl = document.getElementById('new-months');
 
-        const setDefaultState = () => {
-            newExpiryTextEl.textContent = 'Chưa tính được';
-            newMonthsBadgeEl.classList.add('hidden');
-            expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-slate-100 text-slate-500 border-slate-200";
-        };
+    const setDefaultState = () => {
+        newExpiryTextEl.textContent = 'Chưa tính được';
+        newMonthsBadgeEl.classList.add('hidden');
+        expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-slate-100 text-slate-500 border-slate-200";
+    };
 
-        const setSuccessState = () => {
-             expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-teal-50 text-teal-800 border-teal-200";
-        };
+    if (!selectedCustomer || !selectedCustomer['Hạn dùng mới']) {
+        setDefaultState();
+        return;
+    }
 
-        const setWarningState = () => {
-            expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-orange-50 text-orange-700 border-orange-200";
-        };
+    const amount = parseCurrency(paymentAmountInput.value);
+    const monthlyPrice = parseInt(selectedCustomer['Giá 1 tháng']);
+    const promoPrice = parseInt(selectedCustomer['Giá 12 tháng']);
 
-        if (!selectedCustomer) {
-            setDefaultState();
-            return;
-        }
+    if (amount <= 0) {
+        setDefaultState();
+        return;
+    }
 
-        const amount = parseCurrency(paymentAmountInput.value);
-        const monthlyPrice = parseInt(selectedCustomer['Giá 1 tháng']);
+    if (amount < monthlyPrice && amount !== promoPrice) {
+        newExpiryTextEl.textContent = 'Không đủ tiền';
+        newMonthsBadgeEl.classList.add('hidden');
+        expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-orange-50 text-orange-700 border-orange-200";
+        return;
+    }
 
-        if (amount <= 0) {
-            setDefaultState();
-            return;
-        }
+    // 1. Xử lý Parse Date an toàn (Chấp nhận cả ISO string lẫn dd/mm/yyyy)
+    let currentExpiry;
+    const rawDate = selectedCustomer['Hạn dùng mới'];
+    if (typeof rawDate === 'string' && rawDate.includes('/')) {
+        const parts = rawDate.split('/');
+        currentExpiry = new Date(parts[2], parts[1] - 1, parts[0]);
+    } else {
+        currentExpiry = new Date(rawDate);
+    }
 
-        if (amount > 0 && amount < monthlyPrice) {
-            newExpiryTextEl.textContent = 'Không đủ tiền';
-            newMonthsBadgeEl.classList.add('hidden');
-            setWarningState();
-            return;
-        }
+    if (isNaN(currentExpiry.getTime())) {
+        setDefaultState();
+        return;
+    }
 
-        setSuccessState();
-        const promoPrice = parseInt(selectedCustomer['Giá 12 tháng']);
-        const currentExpiry = new Date(selectedCustomer['Hạn dùng mới']);
+    // 2. Tính số tháng cộng thêm
+    let monthsToAdd = 0;
+    if (promoPrice && amount === promoPrice) {
+        monthsToAdd = 12;
+    } else {
+        monthsToAdd = Math.floor(amount / monthlyPrice);
+    }
 
-        let monthsToAdd = 0;
+    newMonthsEl.textContent = monthsToAdd;
+    newMonthsBadgeEl.classList.remove('hidden');
+    expiryContainer.className = "flex items-center justify-between mt-1 p-3 w-full font-extrabold text-xl rounded-lg border-2 transition-colors duration-300 bg-teal-50 text-teal-800 border-teal-200";
 
-        if (promoPrice && amount === promoPrice) {
-            monthsToAdd = 12;
-        } else if (amount > 0 && monthlyPrice > 0) {
-            monthsToAdd = Math.floor(amount / monthlyPrice);
-        }
-
-        newMonthsEl.textContent = monthsToAdd;
-        newMonthsBadgeEl.classList.remove('hidden');
-
-        const newDate = new Date(currentExpiry);
-        if (monthsToAdd > 0) {
-            newDate.setMonth(newDate.getMonth() + monthsToAdd);
-        }
-
-        const finalDate = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0);
-        newExpiryTextEl.textContent = formatDate(finalDate);
+    // 3. Logic cộng ngày chuẩn: 
+    // - Đưa về ngày 15 của tháng đó để cộng tháng không bị lệch
+    // - Sau đó mới tìm ngày cuối cùng của tháng kết quả
+    let tempDate = new Date(currentExpiry.getFullYear(), currentExpiry.getMonth(), 15);
+    tempDate.setMonth(tempDate.getMonth() + monthsToAdd);
+    
+    const finalDate = new Date(tempDate.getFullYear(), tempDate.getMonth() + 1, 0);
+    newExpiryTextEl.textContent = formatDate(finalDate);
     }
 
     async function handlePaymentSubmit(e) {
