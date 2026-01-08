@@ -93,7 +93,7 @@
                       <label for="notes" class="block text-sm font-medium text-slate-600 mb-1">Ghi chú</label>
                       <textarea id="notes" rows="1" class="mt-1 block w-full p-2 border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 transition duration-150 ease-in-out" placeholder="Ghi chú về giao dịch (nếu có)"></textarea>
     
-                      <p id="last-note-display" class="text-red-600 text-xs font-medium mt-1 italic"></p>
+                      <p id="last-note-display" class="text-slate-500 text-base mt-1"></p>
                       </div>
                     <button type="submit" id="submit-payment" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center text-lg">
                         <i class="fas fa-check-circle mr-2"></i> XÁC NHẬN NỘP TIỀN
@@ -458,7 +458,8 @@
         // 3. Hiển thị Ghi chú cũ (Cột I trong Sheet) - CHỮ MÀU ĐỎ
         // Lưu ý: Tên property phải khớp chính xác với tiêu đề cột I trong Sheet
         const oldNote = selectedCustomer['Ghi chú'] || '(Không có)';
-        lastNoteDisplay.textContent = `Ghi chú gần nhất: ${oldNote}`;
+        // Sử dụng innerHTML để có thể định dạng riêng cho từng phần chữ
+        lastNoteDisplay.innerHTML = `Ghi chú gần nhất: <span class="text-red-600 italic font-medium ">${oldNote}</span>`;
 
         // Reset form nộp tiền
         paymentForm.reset();
